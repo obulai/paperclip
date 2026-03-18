@@ -12,9 +12,10 @@ const manifest: PaperclipPluginManifestV1 = {
   categories: ["ui"],
   capabilities: [
     "agents.read",
-    "agent.sessions.create",
-    "agent.sessions.send",
-    "agent.sessions.close",
+    "companies.read",
+    "issues.read",
+    "issue.comments.read",
+    "goals.read",
     "plugin.state.read",
     "plugin.state.write",
     "ui.sidebar.register",
