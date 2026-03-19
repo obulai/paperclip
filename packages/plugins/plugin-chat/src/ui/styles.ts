@@ -109,10 +109,9 @@ export const styles = {
   }),
 
   bubble: (isUser: boolean): CSSProperties => ({
-    maxWidth: "75%",
-    padding: "8px 12px",
+    padding: "10px 16px",
     borderRadius: 12,
-    lineHeight: 1.5,
+    lineHeight: 1.6,
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
     backgroundColor: isUser ? "#3a3aff" : "#2a2a4a",

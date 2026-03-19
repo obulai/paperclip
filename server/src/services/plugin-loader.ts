@@ -245,6 +245,8 @@ export interface PluginRuntimeServices {
     instanceId: string;
     hostVersion: string;
   };
+  /** Optional stream bus for routing worker stream events to SSE clients. */
+  streamBus?: import("./plugin-stream-bus.js").PluginStreamBus;
 }
 
 // ---------------------------------------------------------------------------
@@ -1732,6 +1734,18 @@ export function pluginLoader(
         apiVersion: manifest.apiVersion,
         hostHandlers,
         autoRestart: true,
+        onStreamNotification: runtimeServices.streamBus
+          ? (method, params) => {
+              const channel = params.channel as string | undefined;
+              const companyId = params.companyId as string | undefined;
+              if (!channel || !companyId) return;
+              if (method === "streams.emit") {
+                runtimeServices.streamBus!.publish(pluginId, channel, companyId, params.event ?? params);
+              } else if (method === "streams.close") {
+                runtimeServices.streamBus!.publish(pluginId, channel, companyId, null, "close");
+              }
+            }
+          : undefined,
       };
 
       // Repo-local plugin installs can resolve workspace TS sources at runtime

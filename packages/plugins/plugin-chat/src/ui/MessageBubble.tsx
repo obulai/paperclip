@@ -91,7 +91,7 @@ export function MessageBubble({ msg }: { msg: ChatMessage }) {
 
   return (
     <div style={styles.bubbleRow(isUser)}>
-      <div>
+      <div style={{ maxWidth: "75%" }}>
         {!isUser && (
           <div style={styles.bubbleLabel}>Agent</div>
         )}
