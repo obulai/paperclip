@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { useCompany } from "@/context/CompanyContext";
 import { useBreadcrumbs } from "@/context/BreadcrumbContext";
 import { pluginsApi } from "@/api/plugins";
 import { queryKeys } from "@/lib/queryKeys";
-import { PluginSlotMount } from "@/plugins/slots";
+import { ensurePluginContributionLoaded, PluginSlotMount } from "@/plugins/slots";
 import { NotFoundPage } from "./NotFound";
 
 /**
@@ -86,6 +86,24 @@ export function PluginPage() {
     }),
     [resolvedCompanyId, companyPrefix],
   );
+
+  // Find the full contribution for the active page slot so we can trigger
+  // dynamic module loading. PluginSlotMount only waits for an inflight import —
+  // it doesn't start one — so we must kick it off here.
+  const [, setModuleTick] = useState(0);
+  const pageContribution = useMemo(() => {
+    if (!contributions || !pageSlot) return null;
+    return contributions.find((c) => c.pluginId === pageSlot.pluginId) ?? null;
+  }, [contributions, pageSlot]);
+
+  useEffect(() => {
+    if (!pageContribution) return;
+    let cancelled = false;
+    void ensurePluginContributionLoaded(pageContribution).then(() => {
+      if (!cancelled) setModuleTick((t) => t + 1);
+    });
+    return () => { cancelled = true; };
+  }, [pageContribution]);
 
   useEffect(() => {
     if (pageSlot) {
