@@ -219,6 +219,13 @@ function spawnClaudeChat(
         continue;
       }
 
+      // Log all parsed events for debugging
+      if (parsed.type === "result" && parsed.subtype === "success" && parsed.is_error) {
+        // Claude reports an error via result (e.g. "Not logged in")
+        callbacks.onError(String((parsed as Record<string, unknown>).result ?? "Claude error"));
+        return;
+      }
+
       if (parsed.type === "assistant") {
         const msg = parsed.message as
           | { content?: Array<{ type: string; text?: string }> }
@@ -257,9 +264,9 @@ function spawnClaudeChat(
     }
   });
 
+  let stderrBuffer = "";
   child.stderr!.on("data", (data: Buffer) => {
-    // stderr is informational, don't treat as error unless process exits badly
-    void data;
+    stderrBuffer += data.toString();
   });
 
   child.on("error", (err) => {
@@ -285,7 +292,7 @@ function spawnClaudeChat(
       }
     }
     if (code !== 0 && code !== null) {
-      callbacks.onError(`claude process exited with code ${code}`);
+      callbacks.onError(`claude process exited with code ${code}. stderr: ${stderrBuffer.slice(-500)}`);
     }
   });
 
