@@ -78,8 +78,11 @@ export function toCompanyRelativePath(path: string): string {
   const segments = pathname.split("/").filter(Boolean);
 
   if (segments.length >= 2) {
-    const second = segments[1]!.toLowerCase();
-    if (!GLOBAL_ROUTE_ROOTS.has(segments[0]!.toLowerCase()) && BOARD_ROUTE_ROOTS.has(second)) {
+    const first = segments[0]!.toLowerCase();
+    // Strip the first segment if it isn't a known global or board route root —
+    // meaning it must be a company prefix (e.g. "SUM"). This handles both
+    // built-in board routes (/issues, /dashboard) and plugin routes (/chat, /crm).
+    if (!GLOBAL_ROUTE_ROOTS.has(first) && !BOARD_ROUTE_ROOTS.has(first)) {
       return `/${segments.slice(1).join("/")}${search}${hash}`;
     }
   }
