@@ -23,6 +23,7 @@ export function useChat(agentId: string, companyId: string) {
 
   const [streamingText, setStreamingText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
   const streamingTextRef = useRef("");
 
   // Accumulate streaming chunks
@@ -39,6 +40,7 @@ export function useChat(agentId: string, companyId: string) {
       streamingTextRef.current = "";
       setStreamingText("");
       setIsSending(false);
+      setPendingUserMessage(null);
       // Refresh history to pick up persisted state
       historyResult.refresh();
     }
@@ -46,6 +48,13 @@ export function useChat(agentId: string, companyId: string) {
 
   const sendMessage = useCallback(
     async (message: string) => {
+      // Optimistically show the user's message immediately
+      setPendingUserMessage({
+        id: `pending-${Date.now()}`,
+        role: "user",
+        content: message,
+        timestamp: new Date().toISOString(),
+      });
       setIsSending(true);
       streamingTextRef.current = "";
       setStreamingText("");
@@ -54,13 +63,21 @@ export function useChat(agentId: string, companyId: string) {
         await chatSend({ companyId, agentId, message });
       } catch (err) {
         setIsSending(false);
+        setPendingUserMessage(null);
         throw err;
       }
     },
     [chatSend, companyId, agentId],
   );
 
-  const messages = useMemo(() => historyResult.data ?? [], [historyResult.data]);
+  const messages = useMemo(() => {
+    const history = historyResult.data ?? [];
+    // Append the pending user message if it's not yet in history
+    if (pendingUserMessage && !history.some((m) => m.content === pendingUserMessage.content && m.role === "user" && m.id.startsWith("user-"))) {
+      return [...history, pendingUserMessage];
+    }
+    return history;
+  }, [historyResult.data, pendingUserMessage]);
 
   return {
     messages,
