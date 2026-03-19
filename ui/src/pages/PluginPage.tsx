@@ -1,13 +1,11 @@
 import { useEffect, useMemo } from "react";
-import { Link, Navigate, useParams } from "@/lib/router";
+import { Navigate, useParams } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { useCompany } from "@/context/CompanyContext";
 import { useBreadcrumbs } from "@/context/BreadcrumbContext";
 import { pluginsApi } from "@/api/plugins";
 import { queryKeys } from "@/lib/queryKeys";
 import { PluginSlotMount } from "@/plugins/slots";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import { NotFoundPage } from "./NotFound";
 
 /**
@@ -91,12 +89,9 @@ export function PluginPage() {
 
   useEffect(() => {
     if (pageSlot) {
-      setBreadcrumbs([
-        { label: "Plugins", href: "/instance/settings/plugins" },
-        { label: pageSlot.pluginDisplayName },
-      ]);
+      setBreadcrumbs([{ label: pageSlot.pluginDisplayName }]);
     }
-  }, [pageSlot, companyPrefix, setBreadcrumbs]);
+  }, [pageSlot, setBreadcrumbs]);
 
   if (!resolvedCompanyId) {
     if (hasInvalidCompanyPrefix) {
@@ -136,21 +131,11 @@ export function PluginPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={companyPrefix ? `/${companyPrefix}/dashboard` : "/dashboard"}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Link>
-        </Button>
-      </div>
-      <PluginSlotMount
-        slot={pageSlot}
-        context={context}
-        className="min-h-[200px]"
-        missingBehavior="placeholder"
-      />
-    </div>
+    <PluginSlotMount
+      slot={pageSlot}
+      context={context}
+      className="min-h-[200px]"
+      missingBehavior="placeholder"
+    />
   );
 }

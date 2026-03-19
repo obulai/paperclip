@@ -7,11 +7,14 @@ export const styles = {
 
   pageLayout: {
     display: "flex",
-    height: "100%",
+    height: "calc(100vh - 120px)",
+    minHeight: 500,
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 14,
     color: "#e1e1e1",
     backgroundColor: "#1a1a2e",
+    borderRadius: 12,
+    overflow: "hidden",
   } satisfies CSSProperties,
 
   agentListPanel: {

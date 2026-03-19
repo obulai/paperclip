@@ -183,9 +183,20 @@ function spawnClaudeChat(
     "bypassPermissions",
   ];
 
+  // Ensure claude is findable — add common install locations to PATH
+  const extraPaths = [
+    `${process.env.HOME}/.local/bin`,
+    "/usr/local/bin",
+    `${process.env.HOME}/.nvm/versions/node/current/bin`,
+  ].join(":");
+  const env = {
+    ...process.env,
+    PATH: `${extraPaths}:${process.env.PATH ?? ""}`,
+  };
+
   const child = spawn("claude", args, {
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env },
+    env,
   });
 
   let lastEmittedText = "";

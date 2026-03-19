@@ -32,6 +32,7 @@ const manifest: PaperclipPluginManifestV1 = {
         id: SLOT_IDS.sidebar,
         displayName: "Chat",
         exportName: EXPORT_NAMES.sidebar,
+        order: -1,
       },
       {
         type: "page",
