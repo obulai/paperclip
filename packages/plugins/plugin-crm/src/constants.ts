@@ -100,9 +100,41 @@ export const EXPORT_NAMES = {
 // Tool names
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Discovery sources and company categories
+// ---------------------------------------------------------------------------
+
+export const DISCOVERY_SOURCES: Record<string, string> = {
+  github: "GitHub",
+  hn: "Hacker News",
+  twitter: "Twitter/X",
+  reddit: "Reddit",
+  farcaster: "Farcaster",
+  apollo: "Apollo",
+  firecrawl: "Firecrawl",
+  linkedin: "LinkedIn",
+  other: "Other",
+};
+
+export const COMPANY_CATEGORIES: Record<string, string> = {
+  "ai-tooling": "AI Tooling",
+  "llm-proxy": "LLM Proxy",
+  "dev-tools": "Dev Tools",
+  "ai-agents": "AI Agents",
+  "data-infra": "Data Infra",
+  "api-aggregator": "API Aggregator",
+  "ai-app": "AI App",
+  other: "Other",
+};
+
+// ---------------------------------------------------------------------------
+// Tool names
+// ---------------------------------------------------------------------------
+
 export const TOOL_NAMES = {
   search: "crm-search",
   updateStatus: "crm-update-status",
   logActivity: "crm-log-activity",
   getSummary: "crm-get-summary",
+  handoffTask: "crm-handoff-task",
 } as const;

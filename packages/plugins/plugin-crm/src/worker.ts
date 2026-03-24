@@ -192,6 +192,20 @@ async function registerActionHandlers(ctx: PluginContext): Promise<void> {
       outreachChannel: optionalString(params, "outreachChannel") ?? null,
       tags: Array.isArray(params.tags) ? params.tags : [],
       assignedAgentId: optionalString(params, "assignedAgentId") ?? null,
+      // Discovery & enrichment fields
+      leadScore: typeof params.leadScore === "number" ? params.leadScore : undefined,
+      discoveredAt: optionalString(params, "discoveredAt") ?? undefined,
+      discoverySource: optionalString(params, "discoverySource") ?? undefined,
+      discoveryUrl: optionalString(params, "discoveryUrl") ?? undefined,
+      discoverySignal: optionalString(params, "discoverySignal") ?? undefined,
+      category: optionalString(params, "category") ?? undefined,
+      synergy: optionalString(params, "synergy") ?? undefined,
+      apiServices: Array.isArray(params.apiServices) ? params.apiServices : undefined,
+      techStack: Array.isArray(params.techStack) ? params.techStack : undefined,
+      employeeCount: typeof params.employeeCount === "number" ? params.employeeCount : undefined,
+      founded: optionalString(params, "founded") ?? undefined,
+      githubOrg: optionalString(params, "githubOrg") ?? undefined,
+      websiteUrl: optionalString(params, "websiteUrl") ?? undefined,
     };
 
     const record = await ctx.entities.upsert({
@@ -233,6 +247,8 @@ async function registerActionHandlers(ctx: PluginContext): Promise<void> {
     for (const key of [
       "domain", "industry", "size", "source", "contactEmail", "contactName",
       "phone", "notes", "outreachChannel", "assignedAgentId",
+      "discoveredAt", "discoverySource", "discoveryUrl", "discoverySignal",
+      "category", "synergy", "founded", "githubOrg", "websiteUrl",
     ]) {
       if (params[key] !== undefined) {
         updatedData[key] = params[key];
@@ -241,8 +257,16 @@ async function registerActionHandlers(ctx: PluginContext): Promise<void> {
     if (params.tags !== undefined) {
       updatedData.tags = Array.isArray(params.tags) ? params.tags : [];
     }
+    if (params.apiServices !== undefined) {
+      updatedData.apiServices = Array.isArray(params.apiServices) ? params.apiServices : [];
+    }
+    if (params.techStack !== undefined) {
+      updatedData.techStack = Array.isArray(params.techStack) ? params.techStack : [];
+    }
     if (params.lastContactedAt !== undefined) updatedData.lastContactedAt = params.lastContactedAt;
     if (params.nextFollowUpAt !== undefined) updatedData.nextFollowUpAt = params.nextFollowUpAt;
+    if (params.leadScore !== undefined) updatedData.leadScore = params.leadScore;
+    if (params.employeeCount !== undefined) updatedData.employeeCount = params.employeeCount;
 
     const record = await ctx.entities.upsert({
       entityType: ENTITY_TYPES.company,
@@ -302,6 +326,21 @@ async function registerActionHandlers(ctx: PluginContext): Promise<void> {
       conversionNotes: "",
       tags: Array.isArray(params.tags) ? params.tags : [],
       assignedAgentId: optionalString(params, "assignedAgentId") ?? null,
+      // Discovery & enrichment fields
+      leadScore: typeof params.leadScore === "number" ? params.leadScore : undefined,
+      discoveredAt: optionalString(params, "discoveredAt") ?? undefined,
+      discoverySource: optionalString(params, "discoverySource") ?? undefined,
+      discoveryUrl: optionalString(params, "discoveryUrl") ?? undefined,
+      discoverySignal: optionalString(params, "discoverySignal") ?? undefined,
+      githubHandle: optionalString(params, "githubHandle") ?? undefined,
+      twitterHandle: optionalString(params, "twitterHandle") ?? undefined,
+      linkedinUrl: optionalString(params, "linkedinUrl") ?? undefined,
+      redditHandle: optionalString(params, "redditHandle") ?? undefined,
+      farcasterHandle: optionalString(params, "farcasterHandle") ?? undefined,
+      hnUsername: optionalString(params, "hnUsername") ?? undefined,
+      isSolopreneur: typeof params.isSolopreneur === "boolean" ? params.isSolopreneur : undefined,
+      techStack: Array.isArray(params.techStack) ? params.techStack : undefined,
+      notes: optionalString(params, "notes") ?? undefined,
     };
 
     const record = await ctx.entities.upsert({
@@ -343,6 +382,9 @@ async function registerActionHandlers(ctx: PluginContext): Promise<void> {
       "email", "emailVerified", "phone", "role", "linkedCompanyId",
       "linkedCompanyName", "source", "outreachChannel", "messageSent",
       "responseText", "responseDate", "conversionNotes", "assignedAgentId",
+      "discoveredAt", "discoverySource", "discoveryUrl", "discoverySignal",
+      "githubHandle", "twitterHandle", "linkedinUrl",
+      "redditHandle", "farcasterHandle", "hnUsername", "notes",
     ]) {
       if (params[key] !== undefined) {
         updatedData[key] = params[key];
@@ -351,9 +393,14 @@ async function registerActionHandlers(ctx: PluginContext): Promise<void> {
     if (params.tags !== undefined) {
       updatedData.tags = Array.isArray(params.tags) ? params.tags : [];
     }
+    if (params.techStack !== undefined) {
+      updatedData.techStack = Array.isArray(params.techStack) ? params.techStack : [];
+    }
     if (params.lastContactedAt !== undefined) updatedData.lastContactedAt = params.lastContactedAt;
     if (params.followUpCount !== undefined) updatedData.followUpCount = params.followUpCount;
     if (params.followUpDate !== undefined) updatedData.followUpDate = params.followUpDate;
+    if (params.leadScore !== undefined) updatedData.leadScore = params.leadScore;
+    if (params.isSolopreneur !== undefined) updatedData.isSolopreneur = params.isSolopreneur;
 
     const record = await ctx.entities.upsert({
       entityType: ENTITY_TYPES.person,
@@ -644,6 +691,76 @@ async function registerToolHandlers(ctx: PluginContext): Promise<void> {
       return {
         content: `Logged activity: ${payload.description}`,
         data: record,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.handoffTask,
+    {
+      displayName: "CRM Handoff Task",
+      description:
+        "Create an issue and assign it to another agent, triggering automatic wakeup. Use to hand off work between agents.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Issue title" },
+          description: { type: "string", description: "Description of work to be done" },
+          assigneeAgentName: {
+            type: "string",
+            description: "Name of the target agent (e.g., 'Enrichment Agent')",
+          },
+          priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+        },
+        required: ["title", "assigneeAgentName"],
+      },
+    },
+    async (params, runCtx): Promise<ToolResult> => {
+      const payload = params as {
+        title: string;
+        description?: string;
+        assigneeAgentName: string;
+        priority?: string;
+      };
+
+      // 1. Resolve agent name → ID
+      const agents = await ctx.agents.list({
+        companyId: runCtx.companyId,
+        limit: 200,
+        offset: 0,
+      });
+      const target = agents.find(
+        (a) => a.name.toLowerCase() === payload.assigneeAgentName.toLowerCase(),
+      );
+      if (!target) {
+        return {
+          error: `Agent "${payload.assigneeAgentName}" not found. Available: ${agents.map((a) => a.name).join(", ")}`,
+        };
+      }
+
+      // 2. Create issue with assignment
+      const issue = await ctx.issues.create({
+        companyId: runCtx.companyId,
+        title: payload.title,
+        description: payload.description,
+        priority: (payload.priority as "critical" | "high" | "medium" | "low") ?? "medium",
+        assigneeAgentId: target.id,
+      });
+
+      // 3. Wake the target agent with issue context
+      //    (issues.create at service layer doesn't auto-wake — that's in the route handler only)
+      try {
+        await ctx.agents.invoke(target.id, runCtx.companyId, {
+          prompt: `You have been assigned issue ${issue.identifier}: "${issue.title}". ${issue.description ?? ""}`,
+          reason: "handoff_task_assigned",
+        });
+      } catch {
+        // Agent might already be running — that's fine, it'll pick up the issue
+      }
+
+      return {
+        content: `Created issue "${issue.title}" (${issue.identifier}) assigned to ${target.name}. Agent wakeup triggered.`,
+        data: { issueId: issue.id, identifier: issue.identifier, assigneeAgentId: target.id },
       };
     },
   );

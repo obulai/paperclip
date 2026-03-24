@@ -11,6 +11,8 @@ import {
 import {
   COMPANY_STATUSES,
   COMPANY_SIZES,
+  COMPANY_CATEGORIES,
+  DISCOVERY_SOURCES,
   LEAD_SOURCES,
   OUTREACH_CHANNELS,
   PERSON_STATUSES,
@@ -203,6 +205,146 @@ function StatusBadge({ status, statusMap }: {
 }
 
 // ---------------------------------------------------------------------------
+// LeadScoreBadge — colored by quality tier
+// ---------------------------------------------------------------------------
+
+function LeadScoreBadge({ score }: { score: number | undefined }) {
+  if (score == null) return <span style={{ opacity: 0.4 }}>—</span>;
+  const color = score >= 70 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#94a3b8";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 8px",
+        borderRadius: "999px",
+        fontSize: "11px",
+        fontWeight: 600,
+        background: `${color}20`,
+        color,
+        border: `1px solid ${color}40`,
+      }}
+    >
+      {score}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TagList — render array of strings as pills
+// ---------------------------------------------------------------------------
+
+function TagList({ items, label }: { items: string[] | undefined; label?: string }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={formFieldStyle}>
+      {label && <label style={labelStyle}>{label}</label>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+        {items.map((t) => (
+          <span
+            key={t}
+            style={{
+              padding: "2px 8px",
+              borderRadius: "999px",
+              fontSize: "11px",
+              background: "color-mix(in srgb, var(--foreground) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--border) 60%, transparent)",
+            }}
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// getProfileHandle — pick the most relevant handle for table display
+// ---------------------------------------------------------------------------
+
+function getProfileHandle(data: Record<string, unknown>): string {
+  const source = (data.discoverySource as string) ?? "";
+  // Return the handle matching the discovery source first
+  const sourceToField: Record<string, string> = {
+    github: "githubHandle",
+    twitter: "twitterHandle",
+    reddit: "redditHandle",
+    farcaster: "farcasterHandle",
+    hn: "hnUsername",
+    linkedin: "linkedinUrl",
+  };
+  const primaryField = sourceToField[source];
+  if (primaryField && data[primaryField]) return String(data[primaryField]);
+  // Fall back to any available handle
+  for (const field of ["githubHandle", "twitterHandle", "redditHandle", "farcasterHandle", "hnUsername"]) {
+    if (data[field]) return String(data[field]);
+  }
+  return "—";
+}
+
+// ---------------------------------------------------------------------------
+// SocialHandles — show all social profile links for a person
+// ---------------------------------------------------------------------------
+
+const SOCIAL_FIELDS: { key: string; label: string; prefix?: string }[] = [
+  { key: "githubHandle", label: "GitHub", prefix: "https://github.com/" },
+  { key: "twitterHandle", label: "Twitter/X", prefix: "https://x.com/" },
+  { key: "linkedinUrl", label: "LinkedIn" },
+  { key: "redditHandle", label: "Reddit", prefix: "https://reddit.com/u/" },
+  { key: "farcasterHandle", label: "Farcaster", prefix: "https://warpcast.com/" },
+  { key: "hnUsername", label: "Hacker News", prefix: "https://news.ycombinator.com/user?id=" },
+];
+
+function SocialHandles({ data }: { data: Record<string, unknown> }) {
+  const handles = SOCIAL_FIELDS.filter((f) => data[f.key]);
+  if (handles.length === 0) return null;
+
+  return (
+    <div style={formFieldStyle}>
+      <label style={labelStyle}>Profiles</label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+        {handles.map((f) => {
+          const value = String(data[f.key]);
+          const isUrl = value.startsWith("http");
+          const url = isUrl ? value : f.prefix ? `${f.prefix}${value.replace(/^@/, "")}` : null;
+          return (
+            <span
+              key={f.key}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "3px 10px",
+                borderRadius: "999px",
+                fontSize: "12px",
+                background: "color-mix(in srgb, var(--foreground) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--border) 60%, transparent)",
+              }}
+            >
+              <span style={{ fontWeight: 600, fontSize: "11px", opacity: 0.6 }}>{f.label}</span>
+              {url ? (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "inherit", textDecoration: "underline" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {value.replace(/^@/, "")}
+                </a>
+              ) : (
+                <span>{value}</span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modal wrapper
 // ---------------------------------------------------------------------------
 
@@ -285,7 +427,7 @@ function DetailPanel({ entity, entityType, onClose, onSave, onDelete, agents }: 
           <>
             <div style={formFieldStyle}>
               <label style={labelStyle}>Domain</label>
-              <div style={{ fontSize: "13px" }}>{(data.domain as string) || "—"}</div>
+              <div style={{ fontSize: "13px" }}>{(data.websiteUrl as string) || (data.domain as string) || "—"}</div>
             </div>
             <div style={formFieldStyle}>
               <label style={labelStyle}>Contact</label>
@@ -294,34 +436,144 @@ function DetailPanel({ entity, entityType, onClose, onSave, onDelete, agents }: 
                 {(data.contactEmail as string) ? `<${data.contactEmail}>` : ""}
               </div>
             </div>
-            <div style={formFieldStyle}>
-              <label style={labelStyle}>Source</label>
-              <div style={{ fontSize: "13px" }}>
-                {LEAD_SOURCES[(data.source as string) as keyof typeof LEAD_SOURCES] ?? (data.source as string) ?? "—"}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Source</label>
+                <div style={{ fontSize: "13px" }}>
+                  {LEAD_SOURCES[(data.source as string) as keyof typeof LEAD_SOURCES] ?? (data.source as string) ?? "—"}
+                </div>
+              </div>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Size</label>
+                <div style={{ fontSize: "13px" }}>
+                  {COMPANY_SIZES[(data.size as string) as keyof typeof COMPANY_SIZES] ?? (data.size as string) ?? "—"}
+                </div>
               </div>
             </div>
-            <div style={formFieldStyle}>
-              <label style={labelStyle}>Size</label>
-              <div style={{ fontSize: "13px" }}>
-                {COMPANY_SIZES[(data.size as string) as keyof typeof COMPANY_SIZES] ?? (data.size as string) ?? "—"}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Lead Score</label>
+                <div><LeadScoreBadge score={data.leadScore as number | undefined} /></div>
+              </div>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Category</label>
+                <div style={{ fontSize: "13px" }}>
+                  {COMPANY_CATEGORIES[(data.category as string) ?? ""] ?? (data.category as string) ?? "—"}
+                </div>
               </div>
             </div>
+            {(data.discoverySource || data.discoveryUrl) && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>Discovery Source</label>
+                  <div style={{ fontSize: "13px" }}>
+                    {DISCOVERY_SOURCES[(data.discoverySource as string) ?? ""] ?? (data.discoverySource as string) ?? "—"}
+                  </div>
+                </div>
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>Discovered At</label>
+                  <div style={{ fontSize: "13px" }}>{(data.discoveredAt as string) || "—"}</div>
+                </div>
+              </div>
+            )}
+            {data.discoveryUrl && (
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Discovery URL</label>
+                <div style={{ fontSize: "13px", wordBreak: "break-all" }}>{String(data.discoveryUrl)}</div>
+              </div>
+            )}
+            {data.discoverySignal && (
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Discovery Signal</label>
+                <div style={{ fontSize: "13px" }}>{String(data.discoverySignal)}</div>
+              </div>
+            )}
+            {data.synergy && (
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Synergy / Fit</label>
+                <div style={{ fontSize: "13px" }}>{String(data.synergy)}</div>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+              {data.githubOrg ? (
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>GitHub Org</label>
+                  <div style={{ fontSize: "13px" }}>{String(data.githubOrg)}</div>
+                </div>
+              ) : null}
+              {data.employeeCount != null ? (
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>Employees</label>
+                  <div style={{ fontSize: "13px" }}>{String(data.employeeCount)}</div>
+                </div>
+              ) : null}
+              {data.founded ? (
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>Founded</label>
+                  <div style={{ fontSize: "13px" }}>{String(data.founded)}</div>
+                </div>
+              ) : null}
+            </div>
+            <TagList items={data.apiServices as string[] | undefined} label="API Services" />
+            <TagList items={data.techStack as string[] | undefined} label="Tech Stack" />
           </>
         )}
         {entityType === "person" && (
           <>
-            <div style={formFieldStyle}>
-              <label style={labelStyle}>Email</label>
-              <div style={{ fontSize: "13px" }}>{(data.email as string) || "—"}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Email</label>
+                <div style={{ fontSize: "13px" }}>{(data.email as string) || "—"}</div>
+              </div>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Role</label>
+                <div style={{ fontSize: "13px" }}>{(data.role as string) || "—"}</div>
+              </div>
             </div>
-            <div style={formFieldStyle}>
-              <label style={labelStyle}>Role</label>
-              <div style={{ fontSize: "13px" }}>{(data.role as string) || "—"}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Company</label>
+                <div style={{ fontSize: "13px" }}>{(data.linkedCompanyName as string) || "—"}</div>
+              </div>
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Lead Score</label>
+                <div><LeadScoreBadge score={data.leadScore as number | undefined} /></div>
+              </div>
             </div>
-            <div style={formFieldStyle}>
-              <label style={labelStyle}>Company</label>
-              <div style={{ fontSize: "13px" }}>{(data.linkedCompanyName as string) || "—"}</div>
-            </div>
+            {(data.discoverySource || data.discoveryUrl) && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>Discovery Source</label>
+                  <div style={{ fontSize: "13px" }}>
+                    {DISCOVERY_SOURCES[(data.discoverySource as string) ?? ""] ?? (data.discoverySource as string) ?? "—"}
+                  </div>
+                </div>
+                <div style={formFieldStyle}>
+                  <label style={labelStyle}>Discovered At</label>
+                  <div style={{ fontSize: "13px" }}>{(data.discoveredAt as string) || "—"}</div>
+                </div>
+              </div>
+            )}
+            {data.discoveryUrl && (
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Discovery URL</label>
+                <div style={{ fontSize: "13px", wordBreak: "break-all" }}>{String(data.discoveryUrl)}</div>
+              </div>
+            )}
+            {data.discoverySignal && (
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Discovery Signal</label>
+                <div style={{ fontSize: "13px" }}>{String(data.discoverySignal)}</div>
+              </div>
+            )}
+            <SocialHandles data={data} />
+            {data.isSolopreneur ? (
+              <div style={formFieldStyle}>
+                <label style={labelStyle}>Solopreneur</label>
+                <div style={{ fontSize: "13px" }}>Yes</div>
+              </div>
+            ) : null}
+            <TagList items={data.techStack as string[] | undefined} label="Tech Stack" />
           </>
         )}
 
@@ -585,18 +837,19 @@ function CompaniesPageInner({ companyId }: { companyId: string | null }) {
           <thead>
             <tr>
               <th style={thStyle}>Name</th>
+              <th style={thStyle}>Score</th>
               <th style={thStyle}>Status</th>
+              <th style={thStyle}>Category</th>
               <th style={thStyle}>Source</th>
+              <th style={thStyle}>Discovery</th>
               <th style={thStyle}>Contact</th>
-              <th style={thStyle}>Channel</th>
-              <th style={thStyle}>Last Contacted</th>
               <th style={thStyle}>Agent</th>
             </tr>
           </thead>
           <tbody>
             {companies.length === 0 && (
               <tr>
-                <td style={{ ...tdStyle, opacity: 0.5 }} colSpan={7}>
+                <td style={{ ...tdStyle, opacity: 0.5 }} colSpan={8}>
                   No companies yet. Click "+ New Company" to get started.
                 </td>
               </tr>
@@ -608,20 +861,23 @@ function CompaniesPageInner({ companyId }: { companyId: string | null }) {
                 <tr key={entity.id} style={rowHoverStyle} onClick={() => setSelectedEntity(entity)}>
                   <td style={{ ...tdStyle, fontWeight: 600 }}>{entity.title}</td>
                   <td style={tdStyle}>
+                    <LeadScoreBadge score={data.leadScore as number | undefined} />
+                  </td>
+                  <td style={tdStyle}>
                     <StatusBadge status={entity.status ?? "new"} statusMap={COMPANY_STATUSES} />
+                  </td>
+                  <td style={tdStyle}>
+                    {COMPANY_CATEGORIES[(data.category as string) ?? ""] ?? "—"}
                   </td>
                   <td style={tdStyle}>
                     {LEAD_SOURCES[(data.source as string) as keyof typeof LEAD_SOURCES] ?? "—"}
                   </td>
                   <td style={tdStyle}>
+                    {DISCOVERY_SOURCES[(data.discoverySource as string) ?? ""] ?? "—"}
+                  </td>
+                  <td style={tdStyle}>
                     {(data.contactName as string) || "—"}
                     {data.contactEmail ? ` <${data.contactEmail}>` : ""}
-                  </td>
-                  <td style={tdStyle}>
-                    {OUTREACH_CHANNELS[(data.outreachChannel as string) as keyof typeof OUTREACH_CHANNELS] ?? "—"}
-                  </td>
-                  <td style={tdStyle}>
-                    {data.lastContactedAt ? new Date(data.lastContactedAt as string).toLocaleDateString() : "—"}
                   </td>
                   <td style={tdStyle}>{agent?.name ?? "—"}</td>
                 </tr>
@@ -728,19 +984,20 @@ function PeoplePageInner({ companyId }: { companyId: string | null }) {
           <thead>
             <tr>
               <th style={thStyle}>Name</th>
+              <th style={thStyle}>Score</th>
               <th style={thStyle}>Email</th>
               <th style={thStyle}>Status</th>
               <th style={thStyle}>Role</th>
+              <th style={thStyle}>Discovery</th>
+              <th style={thStyle}>Profile</th>
               <th style={thStyle}>Company</th>
-              <th style={thStyle}>Channel</th>
-              <th style={thStyle}>Follow-ups</th>
               <th style={thStyle}>Agent</th>
             </tr>
           </thead>
           <tbody>
             {people.length === 0 && (
               <tr>
-                <td style={{ ...tdStyle, opacity: 0.5 }} colSpan={8}>
+                <td style={{ ...tdStyle, opacity: 0.5 }} colSpan={9}>
                   No people yet. Click "+ New Person" to get started.
                 </td>
               </tr>
@@ -751,16 +1008,19 @@ function PeoplePageInner({ companyId }: { companyId: string | null }) {
               return (
                 <tr key={entity.id} style={rowHoverStyle} onClick={() => setSelectedEntity(entity)}>
                   <td style={{ ...tdStyle, fontWeight: 600 }}>{entity.title}</td>
+                  <td style={tdStyle}>
+                    <LeadScoreBadge score={data.leadScore as number | undefined} />
+                  </td>
                   <td style={tdStyle}>{(data.email as string) || "—"}</td>
                   <td style={tdStyle}>
                     <StatusBadge status={entity.status ?? "not_contacted"} statusMap={PERSON_STATUSES} />
                   </td>
                   <td style={tdStyle}>{(data.role as string) || "—"}</td>
-                  <td style={tdStyle}>{(data.linkedCompanyName as string) || "—"}</td>
                   <td style={tdStyle}>
-                    {OUTREACH_CHANNELS[(data.outreachChannel as string) as keyof typeof OUTREACH_CHANNELS] ?? "—"}
+                    {DISCOVERY_SOURCES[(data.discoverySource as string) ?? ""] ?? "—"}
                   </td>
-                  <td style={tdStyle}>{(data.followUpCount as number) ?? 0}</td>
+                  <td style={tdStyle}>{getProfileHandle(data)}</td>
+                  <td style={tdStyle}>{(data.linkedCompanyName as string) || "—"}</td>
                   <td style={tdStyle}>{agent?.name ?? "—"}</td>
                 </tr>
               );
@@ -933,14 +1193,12 @@ export function CRMSidebarNav({ context }: PluginSidebarProps) {
 
   return (
     <div style={{ display: "grid", gap: "2px" }}>
-      <a href={`${prefix}/plugins/paperclip-crm/crm`} style={linkStyle}>
-        <span>CRM</span>
-      </a>
-      <a href={`${prefix}/plugins/paperclip-crm/crm/companies`} style={{ ...linkStyle, paddingLeft: "20px" }}>
+      <span style={{ ...linkStyle, cursor: "default", opacity: 0.5 }}>CRM</span>
+      <a href={`${prefix}/crm-companies`} style={{ ...linkStyle, paddingLeft: "20px" }}>
         <span>Companies</span>
         {data && <span style={countBadgeStyle}>{data.companies.total}</span>}
       </a>
-      <a href={`${prefix}/plugins/paperclip-crm/crm/people`} style={{ ...linkStyle, paddingLeft: "20px" }}>
+      <a href={`${prefix}/crm-people`} style={{ ...linkStyle, paddingLeft: "20px" }}>
         <span>People</span>
         {data && <span style={countBadgeStyle}>{data.people.total}</span>}
       </a>

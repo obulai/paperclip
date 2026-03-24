@@ -264,19 +264,44 @@ Use the CRM plugin action **create-person** with these fields:
   "email": "{email}",
   "role": "{role or 'Founder'}",
   "source": "outbound",
-  "tags": ["lead-sourcing", "{source-platform}", "score:{score}"]
+  "leadScore": 85,
+  "discoveredAt": "2026-03-20",
+  "discoverySource": "github",
+  "discoveryUrl": "https://github.com/user/repo",
+  "discoverySignal": "Built multi-LLM proxy using OpenRouter",
+  "githubHandle": "username",
+  "twitterHandle": "@handle",
+  "linkedinUrl": "https://linkedin.com/in/...",
+  "isSolopreneur": true,
+  "techStack": ["openrouter", "firecrawl", "typescript"],
+  "notes": "Additional context if needed",
+  "tags": ["lead-sourcing"]
 }
 ```
 
-Additional context goes in the `notes` field or as a follow-up **crm-log-activity** call:
-- Lead Score
-- Source URL
-- Source Signal description
-- GitHub Handle
-- Twitter Handle
-- Is Solopreneur (Yes/Unknown)
-- Discovered At date
-- Enriched (No/Partial)
+**Field reference:**
+- `leadScore` (number, 0-100) — qualification score from the scoring rubric
+- `discoverySource` — one of: `github`, `hn`, `twitter`, `reddit`, `farcaster`, `apollo`, `firecrawl`, `linkedin`
+- `discoveryUrl` — URL of the post/repo/tweet that triggered discovery
+- `discoverySignal` — brief description of what caught attention
+- `isSolopreneur` (boolean) — true if solo founder/indie hacker
+- `techStack` (string[]) — technologies/services they use
+
+**CRITICAL — Always store the platform handle/profile for the discovery source:**
+
+Without a handle, we have no way to contact or find this person. Always populate the relevant field based on where you found them:
+
+| Discovery Source | Required Field | Example |
+|-----------------|----------------|---------|
+| `github` | `githubHandle` | `"yym68686"` |
+| `twitter` | `twitterHandle` | `"@yym68696"` |
+| `reddit` | `redditHandle` | `"u/yym68696"` |
+| `hn` | `hnUsername` | `"yym68696"` |
+| `farcaster` | `farcasterHandle` | `"yym68696"` |
+| `linkedin` | `linkedinUrl` | `"https://linkedin.com/in/..."` |
+| `apollo` | `email` (+ `linkedinUrl` if available) | |
+
+Also populate any **additional** handles you discover during enrichment (e.g. GitHub README links to Twitter). The more touchpoints we have, the better.
 
 ### Creating a company lead
 
@@ -292,10 +317,27 @@ Use the CRM plugin action **create-company** with these fields:
   "source": "outbound",
   "contactName": "{primary contact if known}",
   "contactEmail": "{email if known}",
-  "notes": "Lead Score: {score} | Source: {platform} | Signal: {description} | GitHub Org: {org} | Founded: {year} | Employees: {count} | Tech Stack: {techs} | AI Use Case: {desc} | API Fit: {services}",
-  "tags": ["lead-sourcing", "{source-platform}", "score:{score}"]
+  "leadScore": 90,
+  "discoveredAt": "2026-03-20",
+  "discoverySource": "github",
+  "discoveryUrl": "https://github.com/org/repo",
+  "discoverySignal": "Open-source AI agent framework",
+  "category": "ai-agents",
+  "synergy": "Uses 3+ paid APIs, could consolidate via Obul proxy",
+  "apiServices": ["openrouter", "firecrawl", "anthropic"],
+  "techStack": ["typescript", "react", "postgres"],
+  "employeeCount": 5,
+  "founded": "2024",
+  "githubOrg": "org-name",
+  "websiteUrl": "https://example.com",
+  "tags": ["lead-sourcing"]
 }
 ```
+
+**For companies too — always store the org handle for the discovery source:**
+- GitHub → `githubOrg`
+- All sources → `websiteUrl` and `domain` if you can find them
+- `discoveryUrl` must always be the specific post/repo/page URL
 
 ### Logging discovery activity
 
@@ -346,7 +388,22 @@ Also use **crm-get-summary** at the end to confirm the updated pipeline totals.
 
 ---
 
-## 9. Budget Management
+## 9. Handoff to Enrichment
+
+After storing new leads, hand off to the Enrichment Agent:
+
+```
+crm-handoff-task(
+  title="Enrich batch {date} ({count} new leads)",
+  description="New leads from {sources}. {count} people and {count} companies stored. Ready for enrichment.",
+  assigneeAgentName="Enrichment Agent",
+  priority="medium"
+)
+```
+
+---
+
+## 10. Budget Management
 
 **Hard cap: $0.50 per daily run.**
 
@@ -373,6 +430,7 @@ You have access to these tools from the CRM plugin:
 | **crm-update-status** | Update outreach status on a CRM record |
 | **crm-log-activity** | Log a discovery/outreach activity against a CRM record |
 | **crm-get-summary** | Get aggregate pipeline stats |
+| **crm-handoff-task** | Create an issue assigned to another agent (triggers auto-wakeup) |
 
 For creating records, use the CRM plugin actions:
 - **create-company** — Create a new CRM company entry

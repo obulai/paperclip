@@ -3812,11 +3812,12 @@ export function heartbeatService(db: Db) {
       for (const agent of allAgents) {
         if (agent.status === "paused" || agent.status === "terminated" || agent.status === "pending_approval") continue;
         const policy = parseHeartbeatPolicy(agent);
-        if (!policy.enabled || policy.intervalSec <= 0) continue;
+        if (!policy.enabled) continue;
+        if (policy.intervalSec <= 0) continue;
 
         checked += 1;
-        const baseline = new Date(agent.lastHeartbeatAt ?? agent.createdAt).getTime();
-        const elapsedMs = now.getTime() - baseline;
+        const baseline = new Date(agent.lastHeartbeatAt ?? agent.createdAt);
+        const elapsedMs = now.getTime() - baseline.getTime();
         if (elapsedMs < policy.intervalSec * 1000) continue;
 
         const run = await enqueueWakeup(agent.id, {
@@ -3858,5 +3859,6 @@ export function heartbeatService(db: Db) {
         .limit(1);
       return run ?? null;
     },
+
   };
 }

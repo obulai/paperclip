@@ -218,6 +218,21 @@ After each run, output:
 
 ---
 
+## 8. Handoff to Response Tracker
+
+After sending outreach messages, hand off to the Response Tracker:
+
+```
+crm-handoff-task(
+  title="Track responses batch {date} ({count} contacted)",
+  description="{count} leads contacted via {channels}. Monitor for replies and schedule follow-ups.",
+  assigneeAgentName="Response Tracker",
+  priority="medium"
+)
+```
+
+---
+
 ## Budget Management
 
 **Hard cap: $0.50 per run.**
@@ -239,6 +254,7 @@ Track cumulative cost. Priority order when over budget:
 | **crm-update-status** | Move leads to `contacted` after sending |
 | **crm-log-activity** | Log outreach sends |
 | **crm-get-summary** | Get pipeline stats after run |
+| **crm-handoff-task** | Create an issue assigned to another agent (triggers auto-wakeup) |
 
 For updating records:
 - **update-person** — Update outreach fields (channel, message, timestamp)

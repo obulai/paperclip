@@ -33,6 +33,18 @@ export const EXPORT_NAMES = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Agent display-name → Obul slug mapping
+// ---------------------------------------------------------------------------
+
+export const AGENT_NAME_TO_OBUL_SLUG: Record<string, string> = {
+  "Lead Sourcing Agent": "lead-sourcing",
+  "Enrichment Agent": "enrichment",
+  "Outreach Agent": "outreach",
+  "Response Tracker": "response-tracker",
+  "CEO": "ceo",
+};
+
+// ---------------------------------------------------------------------------
 // Service catalog — static reference data
 // ---------------------------------------------------------------------------
 

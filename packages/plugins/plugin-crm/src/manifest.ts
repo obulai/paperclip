@@ -25,6 +25,8 @@ const manifest: PaperclipPluginManifestV1 = {
     "plugin.state.read",
     "plugin.state.write",
     "agent.tools.register",
+    "issues.create",
+    "agents.invoke",
     "ui.sidebar.register",
     "ui.page.register",
     "ui.dashboardWidget.register",
@@ -101,6 +103,32 @@ const manifest: PaperclipPluginManifestV1 = {
         properties: {},
       },
     },
+    {
+      name: TOOL_NAMES.handoffTask,
+      displayName: "CRM Handoff Task",
+      description:
+        "Create an issue and assign it to another agent, triggering automatic wakeup. Use to hand off work between agents.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Issue title" },
+          description: {
+            type: "string",
+            description: "Description of work to be done",
+          },
+          assigneeAgentName: {
+            type: "string",
+            description:
+              "Name of the target agent (e.g., 'Enrichment Agent')",
+          },
+          priority: {
+            type: "string",
+            enum: ["critical", "high", "medium", "low"],
+          },
+        },
+        required: ["title", "assigneeAgentName"],
+      },
+    },
   ],
   ui: {
     slots: [
@@ -116,14 +144,14 @@ const manifest: PaperclipPluginManifestV1 = {
         id: SLOT_IDS.companiesPage,
         displayName: "CRM Companies",
         exportName: EXPORT_NAMES.companiesPage,
-        routePath: "crm/companies",
+        routePath: "crm-companies",
       },
       {
         type: "page",
         id: SLOT_IDS.peoplePage,
         displayName: "CRM People",
         exportName: EXPORT_NAMES.peoplePage,
-        routePath: "crm/people",
+        routePath: "crm-people",
       },
       {
         type: "dashboardWidget",

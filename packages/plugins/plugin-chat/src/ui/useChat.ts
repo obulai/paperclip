@@ -24,6 +24,8 @@ export function useChat(agentId: string, companyId: string) {
   const [streamingText, setStreamingText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
+  // Holds the completed assistant response until the history refresh lands
+  const [completedMessage, setCompletedMessage] = useState<ChatMessage | null>(null);
   const streamingTextRef = useRef("");
 
   // Accumulate streaming chunks
@@ -37,6 +39,15 @@ export function useChat(agentId: string, companyId: string) {
     }
 
     if (event.eventType === "done" || event.eventType === "error") {
+      // Preserve the final text as a completed message so it stays visible
+      // until the history refresh brings back the persisted version
+      if (streamingTextRef.current) {
+        setCompletedMessage({
+          id: "__completed__",
+          role: "assistant",
+          content: streamingTextRef.current,
+        });
+      }
       streamingTextRef.current = "";
       setStreamingText("");
       setIsSending(false);
@@ -45,6 +56,15 @@ export function useChat(agentId: string, companyId: string) {
       historyResult.refresh();
     }
   }, [streamResult.lastEvent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear completedMessage once the refreshed history contains it
+  useEffect(() => {
+    if (completedMessage && historyResult.data?.some(
+      (m) => m.role === "assistant" && m.content === completedMessage.content,
+    )) {
+      setCompletedMessage(null);
+    }
+  }, [historyResult.data, completedMessage]);
 
   const sendMessage = useCallback(
     async (message: string) => {
@@ -72,12 +92,17 @@ export function useChat(agentId: string, companyId: string) {
 
   const messages = useMemo(() => {
     const history = historyResult.data ?? [];
+    const result = [...history];
     // Append the pending user message if it's not yet in history
     if (pendingUserMessage && !history.some((m) => m.content === pendingUserMessage.content && m.role === "user" && m.id.startsWith("user-"))) {
-      return [...history, pendingUserMessage];
+      result.push(pendingUserMessage);
     }
-    return history;
-  }, [historyResult.data, pendingUserMessage]);
+    // Append completed assistant message if history hasn't caught up yet
+    if (completedMessage && !history.some((m) => m.role === "assistant" && m.content === completedMessage.content)) {
+      result.push(completedMessage);
+    }
+    return result;
+  }, [historyResult.data, pendingUserMessage, completedMessage]);
 
   return {
     messages,

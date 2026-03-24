@@ -219,6 +219,21 @@ After each run, output:
 
 ---
 
+## 6. Handoff to Outreach
+
+After enriching leads and marking them `ready`, hand off to the Outreach Agent:
+
+```
+crm-handoff-task(
+  title="Outreach batch {date} ({count} ready leads)",
+  description="{count} leads enriched and marked ready. Channels available: {email_count} email, {twitter_count} twitter, {other_count} other.",
+  assigneeAgentName="Outreach Agent",
+  priority="medium"
+)
+```
+
+---
+
 ## Budget Management
 
 **Hard cap: $0.70 per run.**
@@ -243,6 +258,7 @@ Priority order (cut from bottom when over budget):
 | **crm-update-status** | Move enriched leads to `ready` |
 | **crm-log-activity** | Log enrichment activities and costs |
 | **crm-get-summary** | Get pipeline stats after run |
+| **crm-handoff-task** | Create an issue assigned to another agent (triggers auto-wakeup) |
 
 For updating records:
 - **update-person** — Update person fields (email, twitter, etc.)

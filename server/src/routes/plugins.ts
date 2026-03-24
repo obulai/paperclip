@@ -25,7 +25,7 @@ import { Router } from "express";
 import type { Request } from "express";
 import { and, desc, eq, gte } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import { companies, pluginLogs, pluginWebhookDeliveries } from "@paperclipai/db";
+import { companies, pluginCompanySettings, pluginLogs, pluginWebhookDeliveries } from "@paperclipai/db";
 import type {
   PluginStatus,
   PaperclipPluginManifestV1,
@@ -441,7 +441,30 @@ export function pluginRoutes(
    */
   router.get("/plugins/ui-contributions", async (req, res) => {
     assertBoard(req);
-    const plugins = await registry.listByStatus("ready");
+    const companyId = typeof req.query["companyId"] === "string" ? req.query["companyId"] : null;
+
+    const allPlugins = await registry.listByStatus("ready");
+
+    // If a companyId is provided, filter out plugins explicitly disabled for that company.
+    let enabledPluginIds: Set<string> | null = null;
+    if (companyId) {
+      const settings = await db
+        .select({ pluginId: pluginCompanySettings.pluginId, enabled: pluginCompanySettings.enabled })
+        .from(pluginCompanySettings)
+        .where(eq(pluginCompanySettings.companyId, companyId));
+      enabledPluginIds = new Set(
+        allPlugins
+          .map((p) => p.id)
+          .filter((id) => {
+            const row = settings.find((s) => s.pluginId === id);
+            return row ? row.enabled : true; // no row = enabled by default
+          }),
+      );
+    }
+
+    const plugins = enabledPluginIds
+      ? allPlugins.filter((p) => enabledPluginIds!.has(p.id))
+      : allPlugins;
 
     const contributions: PluginUiContribution[] = plugins
       .map((plugin) => {
@@ -1326,6 +1349,50 @@ export function pluginRoutes(
       const message = err instanceof Error ? err.message : String(err);
       res.status(400).json({ error: message });
     }
+  });
+
+  /**
+   * PUT /api/plugins/:pluginId/company-settings
+   *
+   * Enable or disable a plugin for a specific company.
+   *
+   * Request body:
+   * - companyId: Target company UUID (required)
+   * - enabled: true to enable, false to disable (required)
+   *
+   * Response: { pluginId, companyId, enabled }
+   * Errors: 404 if plugin not found, 400 if companyId missing
+   */
+  router.put("/plugins/:pluginId/company-settings", async (req, res) => {
+    assertBoard(req);
+    const { pluginId } = req.params;
+    const { companyId, enabled } = req.body as { companyId?: string; enabled?: boolean };
+
+    if (!companyId) {
+      res.status(400).json({ error: "companyId is required" });
+      return;
+    }
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ error: "enabled (boolean) is required" });
+      return;
+    }
+
+    const plugin = await resolvePlugin(registry, pluginId);
+    if (!plugin) {
+      res.status(404).json({ error: "Plugin not found" });
+      return;
+    }
+
+    await db
+      .insert(pluginCompanySettings)
+      .values({ pluginId: plugin.id, companyId, enabled })
+      .onConflictDoUpdate({
+        target: [pluginCompanySettings.pluginId, pluginCompanySettings.companyId],
+        set: { enabled, updatedAt: new Date() },
+      });
+
+    publishGlobalLiveEvent({ type: "plugin.ui.updated", payload: { pluginId: plugin.id, action: enabled ? "enabled" : "disabled" } });
+    res.json({ pluginId: plugin.id, companyId, enabled });
   });
 
   /**

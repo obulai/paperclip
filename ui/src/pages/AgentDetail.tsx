@@ -96,6 +96,7 @@ import {
   arraysEqual,
   isReadOnlyUnmanagedSkillEntry,
 } from "../lib/agent-skills-state";
+import { ObulApisSummary } from "../components/ObulApisSummary";
 
 const runStatusIcons: Record<string, { icon: typeof CheckCircle2; color: string }> = {
   succeeded: { icon: CheckCircle2, color: "text-green-600 dark:text-green-400" },
@@ -1207,6 +1208,7 @@ function AgentOverview({
       <div className="space-y-3">
         <h3 className="text-sm font-medium">Costs</h3>
         <CostsSection runtimeState={runtimeState} runs={runs} />
+        <ObulApisSummary agentName={agent.name} companyId={agent.companyId} />
       </div>
     </div>
   );

@@ -334,6 +334,70 @@ export function nextCronTickFromExpression(
   return nextCronTick(cron, after);
 }
 
+/**
+ * Like nextCronTick but evaluates the cron expression in a named IANA
+ * timezone (e.g. "America/New_York"). Uses Intl.DateTimeFormat — no deps.
+ */
+export function nextCronTickInTimezone(
+  cron: ParsedCron,
+  after: Date,
+  timezone: string,
+): Date | null {
+  // Walk forward minute-by-minute in the target timezone.
+  // Start from the minute after `after`.
+  const d = new Date(after.getTime());
+  d.setUTCSeconds(0, 0);
+  d.setUTCMinutes(d.getUTCMinutes() + 1);
+
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    weekday: "short",
+    hour12: false,
+  });
+
+  const MAX_ITERATIONS = 4 * 366 * 24 * 60;
+
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const parts = Object.fromEntries(
+      fmt.formatToParts(d).map((p) => [p.type, p.value]),
+    );
+    const month = Number(parts.month);
+    const day = Number(parts.day);
+    const hour = Number(parts.hour === "24" ? "0" : parts.hour);
+    const minute = Number(parts.minute);
+    const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+      parts.weekday!,
+    );
+
+    if (!cron.months.includes(month)) {
+      d.setUTCDate(d.getUTCDate() + 1);
+      d.setUTCHours(0, 0, 0, 0);
+      continue;
+    }
+    if (!cron.daysOfMonth.includes(day) || !cron.daysOfWeek.includes(dow)) {
+      d.setUTCDate(d.getUTCDate() + 1);
+      d.setUTCHours(0, 0, 0, 0);
+      continue;
+    }
+    if (!cron.hours.includes(hour)) {
+      d.setUTCMinutes(d.getUTCMinutes() + 60);
+      continue;
+    }
+    if (!cron.minutes.includes(minute)) {
+      d.setUTCMinutes(d.getUTCMinutes() + 1);
+      continue;
+    }
+
+    return new Date(d.getTime());
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
